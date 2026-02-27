@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>每日拼图 · 全平台自由编辑版</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #f5f5f5;
+    padding: 20px;
+    max-width: 600px;
+    margin: 0 auto;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1 {
+    margin-bottom: 5px;
+    font-size: 24px;
+  }
+  .controls {
+    margin: 20px 0;
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .mode-buttons {
+    display: flex;
+    gap: 5px;
+  }
+  .mode-buttons button {
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    background: white;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .mode-buttons button.active {
+    background: black;
+    color: white;
+    border-color: black;
+  }
+  #streak {
+    font-weight: bold;
+    color: #4caf50;
+    font-size: 20px;
+  }
+  #puzzle {
+    display: grid;
+    gap: 8px;
+    justify-content: center;
+    margin: 25px 0;
+    user-select: none;
+  }
+  .block {
+    position: relative;
+    aspect-ratio: 1 / 1;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    cursor: pointer;
+  }
+  .block-content {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: #ddd;
+    background-repeat: no-repeat;
+    background-size: cover;
+    background-position: center;
+    transition: filter 0.2s;
+  }
+  .block-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 13px;
+    font-weight: bold;
+    text-shadow: 0 0 4px black;
+    z-index: 2;
+    width: 90%;
+    text-align: center;
+    word-break: break-word;
+    pointer-events: none;
+  }
+  .block-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 1;
+    transition: opacity 0.2s;
+    border-radius: 8px;
+    pointer-events: none;
+  }
+  .block.done .block-overlay {
+    opacity: 0;
+  }
+  .block.done .block-content {
+    background-color: #4caf50 !important;
+  }
+  .footer {
+    margin-top: 30px;
+    color: #888;
+    font-size: 14px;
+  }
+  .footer a {
+    color: #888;
+    text-decoration: none;
+    border-bottom: 1px dashed #ccc;
+    cursor: pointer;
+  }
+  .image-upload {
+    margin: 15px 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+  }
+  .image-upload label {
+    background: #eee;
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  .image-upload input {
+    display: none;
+  }
+  .image-upload button {
+    background: none;
+    border: 1px solid #ccc;
+    padding: 6px 12px;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+  .settings-panel {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    text-align: left;
+  }
+  .settings-panel textarea {
+    width: 100%;
+    box-sizing: border-box;
+    margin: 5px 0 15px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 14px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  .settings-panel label {
+    font-weight: bold;
+    display: block;
+    margin-top: 10px;
+  }
+  #pickerOverlay {
+    display: none;
+    position: fixed;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.2);
+    padding: 10px 0;
+    z-index: 1000;
+    max-width: 80%;
+    max-height: 60%;
+    overflow-y: auto;
+  }
+  #pickerOverlay ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  #pickerOverlay li {
+    padding: 12px 20px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+  }
+  #pickerOverlay li:last-child {
+    border-bottom: none;
+  }
+  #pickerOverlay li:hover {
+    background: #f0f0f0;
+  }
+  .hint {
+    font-size: 12px;
+    color: #999;
+    margin-top: 10px;
+  }
+</style>
+</head>
+<body>
+
+<h1>🧩 每日拼图</h1>
+<p id="date"></p>
+
+<div class="controls">
+  <div class="mode-buttons">
+    <button id="mode3" onclick="setMode(3)">3块</button>
+    <button id="mode4" onclick="setMode(4)">4块</button>
+    <button id="mode5" onclick="setMode(5)">5块</button>
+    <button id="mode6" onclick="setMode(6)">6块</button>
+  </div>
+  <div>连续完成 <span id="streak">0</span> 天</div>
+</div>
+
+<div id="puzzle"></div>
+
+<div class="image-upload">
+  <label for="imageUpload">📷 上传背景图</label>
+  <input type="file" id="imageUpload" accept="image/*" onchange="handleImageUpload(event)">
+  <button onclick="clearImage()">清除图片</button>
+</div>
+
+<div class="footer">
+  ✔️ 单击切换完成 · 右键/长按编辑内容 · 数据存本地 ·
+  <a onclick="toggleSettings()">⚙️ 自定义模块</a>
+</div>
+<div class="footer hint">
+  📱 手机长按 · 💻 电脑右键 → 可自由修改每个拼块的任务
+</div>
+
+<div id="settingsPanel" class="settings-panel">
+  <h3>自定义模块库</h3>
+  <label>基础模块（每行一项）</label>
+  <textarea id="baseModulesInput" rows="4" placeholder="20分钟运动&#10;一次直接表达&#10;45分钟主线推进&#10;记录一次收支"></textarea>
+  <label>主题池（每行一项）</label>
+  <textarea id="themePoolInput" rows="5" placeholder="输出300字&#10;AI学习20分钟&#10;联系一个人&#10;阅读30分钟&#10;10分钟静坐"></textarea>
+  <div>
+    <button onclick="saveCustomModules()">保存并重新生成</button>
+    <button onclick="toggleSettings()">关闭</button>
+  </div>
+  <p style="font-size: 13px; color: #999; margin-top: 10px;">保存后会清空今天进度，按当前块数重新生成初始拼块。</p>
+</div>
+
+<div id="pickerOverlay" onclick="event.stopPropagation()">
+  <ul id="pickerOptions"></ul>
+</div>
+
+<script>
+// ----- 默认配置 -----
+const DEFAULT_BASE = [
+  "20分钟运动",
+  "一次直接表达",
+  "45分钟主线推进",
+  "记录一次收支"
+];
+const DEFAULT_THEME = [
+  "输出300字",
+  "AI学习20分钟",
+  "联系一个人",
+  "阅读30分钟",
+  "10分钟静坐",
+  "早睡30分钟"
+];
+
+// ----- 全局变量 -----
+let uploadedImageDataURL = null;
+let currentEditingIndex = -1;
+
+// ----- 读取/保存自定义模块 -----
+function loadCustomModules() {
+  let base = localStorage.getItem('custom_baseModules');
+  let theme = localStorage.getItem('custom_themePool');
+  if (!base) base = DEFAULT_BASE;
+  else try { base = JSON.parse(base); } catch { base = DEFAULT_BASE; }
+  if (!theme) theme = DEFAULT_THEME;
+  else try { theme = JSON.parse(theme); } catch { theme = DEFAULT_THEME; }
+  return { base, theme };
+}
+
+function saveCustomModulesFromInputs() {
+  const baseText = document.getElementById('baseModulesInput').value.trim();
+  const themeText = document.getElementById('themePoolInput').value.trim();
+  const baseArray = baseText.split('\n').map(s => s.trim()).filter(s => s !== '');
+  const themeArray = themeText.split('\n').map(s => s.trim()).filter(s => s !== '');
+  if (baseArray.length === 0) { alert('基础模块不能为空'); return false; }
+  if (themeArray.length === 0) { alert('主题池至少需要一项'); return false; }
+  localStorage.setItem('custom_baseModules', JSON.stringify(baseArray));
+  localStorage.setItem('custom_themePool', JSON.stringify(themeArray));
+  return true;
+}
+
+function loadSettingsToInputs() {
+  const { base, theme } = loadCustomModules();
+  document.getElementById('baseModulesInput').value = base.join('\n');
+  document.getElementById('themePoolInput').value = theme.join('\n');
+}
+
+function toggleSettings() {
+  const panel = document.getElementById('settingsPanel');
+  if (panel.style.display === 'none' || panel.style.display === '') {
+    panel.style.display = 'block';
+    loadSettingsToInputs();
+  } else {
+    panel.style.display = 'none';
+  }
+}
+
+function saveCustomModules() {
+  if (!saveCustomModulesFromInputs()) return;
+  const todayKey = getTodayKey();
+  localStorage.removeItem(todayKey);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith(todayKey + "_done_")) {
+      localStorage.removeItem(key);
+      i--;
+    }
+  }
+  document.getElementById('settingsPanel').style.display = 'none';
+  const savedMode = localStorage.getItem(todayKey + "_mode");
+  const mode = savedMode ? parseInt(savedMode) : 5;
+  generatePuzzle(mode);
+}
+
+// ----- 日期工具 -----
+function getTodayKey() {
+  return "puzzle_" + new Date().toISOString().split('T')[0];
+}
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ----- 更新连续完成天数 -----
+function updateStreak() {
+  let streak = 0;
+  let currentDate = new Date();
+  while (true) {
+    const dateStr = formatDate(currentDate);
+    const puzzleKey = "puzzle_" + dateStr;
+    const puzzleData = localStorage.getItem(puzzleKey);
+    if (!puzzleData) break;
+    const pieces = JSON.parse(puzzleData);
+    let allDone = true;
+    for (let i = 0; i < pieces.length; i++) {
+      if (localStorage.getItem(puzzleKey + "_done_" + i) !== "true") {
+        allDone = false;
+        break;
+      }
+    }
+    if (!allDone) break;
+    streak++;
+    currentDate.setDate(currentDate.getDate() - 1);
+  }
+  document.getElementById('streak').innerText = streak;
+}
+
+// ----- 根据块数获取网格行列数 -----
+function getGridRowsCols(pieceCount) {
+  if (pieceCount <= 3) return { rows: 1, cols: 3 };
+  if (pieceCount === 4) return { rows: 2, cols: 2 };
+  return { rows: 2, cols: 3 };
+}
+
+// ----- 显示编辑浮层 -----
+function showPickerForBlock(index, blockElement, clientX, clientY) {
+  const { base, theme } = loadCustomModules();
+  const allOptions = [...new Set([...base, ...theme])];
+  const list = document.getElementById('pickerOptions');
+  list.innerHTML = '';
+  allOptions.forEach(opt => {
+    const li = document.createElement('li');
+    li.textContent = opt;
+    li.onclick = (e) => {
+      e.stopPropagation();
+      const todayKey = getTodayKey();
+      const puzzleData = localStorage.getItem(todayKey);
+      if (!puzzleData) return;
+      const pieces = JSON.parse(puzzleData);
+      if (index < pieces.length) {
+        pieces[index] = opt;
+        localStorage.setItem(todayKey, JSON.stringify(pieces));
+        localStorage.removeItem(todayKey + "_done_" + index);
+        renderPuzzle(pieces);
+        updateStreak();
+      }
+      hidePicker();
+    };
+    list.appendChild(li);
+  });
+
+  const overlay = document.getElementById('pickerOverlay');
+  // 使用点击位置或块位置定位
+  let left, top;
+  if (clientX !== undefined && clientY !== undefined) {
+    left = clientX + window.scrollX;
+    top = clientY + window.scrollY + 5;
+  } else {
+    const rect = blockElement.getBoundingClientRect();
+    left = rect.left + window.scrollX;
+    top = rect.bottom + window.scrollY + 5;
+  }
+  // 避免超出屏幕
+  overlay.style.left = Math.min(left, window.innerWidth - 200) + 'px';
+  overlay.style.top = top + 'px';
+  overlay.style.display = 'block';
+}
+
+function hidePicker() {
+  document.getElementById('pickerOverlay').style.display = 'none';
+}
+
+// ----- 渲染拼图块 -----
+function renderPuzzle(pieces) {
+  const container = document.getElementById('puzzle');
+  container.innerHTML = '';
+
+  const pieceCount = pieces.length;
+  const { rows, cols } = getGridRowsCols(pieceCount);
+  container.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  let bgSize = null;
+  let bgPositions = [];
+  if (uploadedImageDataURL) {
+    bgSize = `${cols * 100}% ${rows * 100}%`;
+    for (let i = 0; i < pieceCount; i++) {
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const xPercent = cols > 1 ? (c * 100 / (cols - 1)) + '%' : '0%';
+      const yPercent = rows > 1 ? (r * 100 / (rows - 1)) + '%' : '0%';
+      bgPositions[i] = `${xPercent} ${yPercent}`;
+    }
+  }
+
+  pieces.forEach((piece, index) => {
+    const block = document.createElement('div');
+    block.className = 'block';
+    block.dataset.index = index;
+
+    const content = document.createElement('div');
+    content.className = 'block-content';
+    if (uploadedImageDataURL) {
+      content.style.backgroundImage = `url(${uploadedImageDataURL})`;
+      content.style.backgroundSize = bgSize;
+      content.style.backgroundPosition = bgPositions[index];
+    }
+
+    const textSpan = document.createElement('div');
+    textSpan.className = 'block-text';
+    textSpan.innerText = piece;
+
+    const overlay = document.createElement('div');
+    overlay.className = 'block-overlay';
+
+    block.appendChild(content);
+    block.appendChild(textSpan);
+    block.appendChild(overlay);
+
+    const doneKey = getTodayKey() + "_done_" + index;
+    if (localStorage.getItem(doneKey) === 'true') {
+      block.classList.add('done');
+    }
+
+    // 单击切换完成状态
+    block.onclick = (e) => {
+      e.stopPropagation();
+      block.classList.toggle('done');
+      if (block.classList.contains('done')) {
+        localStorage.setItem(doneKey, 'true');
+      } else {
+        localStorage.removeItem(doneKey);
+      }
+      updateStreak();
+    };
+
+    // 右键/长按编辑内容
+    block.oncontextmenu = (e) => {
+      e.preventDefault();      // 阻止浏览器默认右键菜单
+      e.stopPropagation();
+      currentEditingIndex = index;
+      showPickerForBlock(index, block, e.clientX, e.clientY);
+      return false;
+    };
+
+    container.appendChild(block);
+  });
+
+  document.getElementById('date').innerText = '日期：' + new Date().toLocaleDateString();
+}
+
+// ----- 生成今日拼图 -----
+function generatePuzzle(mode) {
+  const todayKey = getTodayKey();
+  const { base, theme } = loadCustomModules();
+
+  if (mode !== undefined) {
+    localStorage.removeItem(todayKey);
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(todayKey + "_done_")) {
+        localStorage.removeItem(key);
+        i--;
+      }
+    }
+
+    let todayPuzzle;
+    if (mode === 3) {
+      todayPuzzle = base.slice(0, 3);
+    } else if (mode === 4) {
+      todayPuzzle = base.slice(0, 4);
+    } else if (mode === 5) {
+      todayPuzzle = [...base.slice(0, 4), theme[0] || '（无主题）'];
+    } else if (mode === 6) {
+      const extra = theme.slice(0, 2);
+      while (extra.length < 2) extra.push('额外任务');
+      todayPuzzle = [...base.slice(0, 4), ...extra];
+    }
+
+    localStorage.setItem(todayKey, JSON.stringify(todayPuzzle));
+    localStorage.setItem(todayKey + "_mode", mode);
+    renderPuzzle(todayPuzzle);
+    updateModeUI(mode);
+    updateStreak();
+    return;
+  }
+
+  if (localStorage.getItem(todayKey)) {
+    const pieces = JSON.parse(localStorage.getItem(todayKey));
+    const savedMode = localStorage.getItem(todayKey + "_mode");
+    const modeNum = savedMode ? parseInt(savedMode) : (pieces.length === 4 ? 4 : 5);
+    renderPuzzle(pieces);
+    updateModeUI(modeNum);
+    updateStreak();
+    return;
+  }
+
+  const savedMode = localStorage.getItem(todayKey + "_mode");
+  const defaultMode = savedMode ? parseInt(savedMode) : 5;
+  generatePuzzle(defaultMode);
+}
+
+function updateModeUI(mode) {
+  ['mode3','mode4','mode5','mode6'].forEach(id => {
+    document.getElementById(id).classList.remove('active');
+  });
+  document.getElementById('mode' + mode).classList.add('active');
+}
+
+function setMode(mode) {
+  localStorage.setItem(getTodayKey() + "_mode", mode);
+  generatePuzzle(mode);
+}
+
+// ----- 图片上传 -----
+function handleImageUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    uploadedImageDataURL = e.target.result;
+    const todayKey = getTodayKey();
+    const puzzleData = localStorage.getItem(todayKey);
+    if (puzzleData) {
+      renderPuzzle(JSON.parse(puzzleData));
+    } else {
+      generatePuzzle();
+    }
+  };
+  reader.readAsDataURL(file);
+  event.target.value = '';
+}
+
+function clearImage() {
+  uploadedImageDataURL = null;
+  const todayKey = getTodayKey();
+  const puzzleData = localStorage.getItem(todayKey);
+  if (puzzleData) {
+    renderPuzzle(JSON.parse(puzzleData));
+  } else {
+    generatePuzzle();
+  }
+}
+
+// 点击外部隐藏浮层
+document.addEventListener('click', function(e) {
+  const overlay = document.getElementById('pickerOverlay');
+  if (overlay.style.display === 'block' && !overlay.contains(e.target)) {
+    overlay.style.display = 'none';
+  }
+});
+
+// 启动
+generatePuzzle();
+</script>
+</body>
+</html>
