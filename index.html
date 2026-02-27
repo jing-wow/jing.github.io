@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>每日拼图 · 全平台自由编辑版</title>
+<title>每日拼图 · 优化长按版</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -228,11 +228,11 @@
 </div>
 
 <div class="footer">
-  ✔️ 单击切换完成 · 右键/长按编辑内容 · 数据存本地 ·
+  ✔️ 单击切换完成 · 长按/右键编辑内容 · 数据存本地 ·
   <a onclick="toggleSettings()">⚙️ 自定义模块</a>
 </div>
 <div class="footer hint">
-  📱 手机长按 · 💻 电脑右键 → 可自由修改每个拼块的任务
+  📱 手机长按约0.5秒即可编辑（如果仍无效，可尝试用系统浏览器打开）
 </div>
 
 <div id="settingsPanel" class="settings-panel">
@@ -399,7 +399,6 @@ function showPickerForBlock(index, blockElement, clientX, clientY) {
   });
 
   const overlay = document.getElementById('pickerOverlay');
-  // 使用点击位置或块位置定位
   let left, top;
   if (clientX !== undefined && clientY !== undefined) {
     left = clientX + window.scrollX;
@@ -470,7 +469,7 @@ function renderPuzzle(pieces) {
       block.classList.add('done');
     }
 
-    // 单击切换完成状态
+    // ---------- 单击切换完成 ----------
     block.onclick = (e) => {
       e.stopPropagation();
       block.classList.toggle('done');
@@ -482,14 +481,57 @@ function renderPuzzle(pieces) {
       updateStreak();
     };
 
-    // 右键/长按编辑内容
+    // ---------- 电脑右键编辑 ----------
     block.oncontextmenu = (e) => {
-      e.preventDefault();      // 阻止浏览器默认右键菜单
+      e.preventDefault();
       e.stopPropagation();
-      currentEditingIndex = index;
       showPickerForBlock(index, block, e.clientX, e.clientY);
       return false;
     };
+
+    // ---------- 手机长按编辑（优化版） ----------
+    let touchTimer;
+    let touchMoved = false;
+    const longPressDelay = 500;
+    const moveThreshold = 10;
+
+    block.addEventListener('touchstart', (e) => {
+      e.preventDefault(); // 关键：阻止浏览器默认滚动和菜单
+      touchMoved = false;
+      const touch = e.touches[0];
+      const startX = touch.clientX;
+      const startY = touch.clientY;
+
+      touchTimer = setTimeout(() => {
+        if (!touchMoved) {
+          // 触发编辑菜单
+          showPickerForBlock(index, block, e.touches[0].clientX, e.touches[0].clientY);
+        }
+      }, longPressDelay);
+
+      const touchMoveHandler = (e) => {
+        if (!touchMoved) {
+          const touch = e.touches[0];
+          const dx = touch.clientX - startX;
+          const dy = touch.clientY - startY;
+          if (Math.abs(dx) > moveThreshold || Math.abs(dy) > moveThreshold) {
+            touchMoved = true;
+            clearTimeout(touchTimer);
+          }
+        }
+      };
+
+      const touchEndHandler = () => {
+        clearTimeout(touchTimer);
+        block.removeEventListener('touchmove', touchMoveHandler);
+        block.removeEventListener('touchend', touchEndHandler);
+        block.removeEventListener('touchcancel', touchEndHandler);
+      };
+
+      block.addEventListener('touchmove', touchMoveHandler, { passive: false });
+      block.addEventListener('touchend', touchEndHandler);
+      block.addEventListener('touchcancel', touchEndHandler);
+    }, { passive: false });
 
     container.appendChild(block);
   });
