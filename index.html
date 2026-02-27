@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>每日拼图 · 优化长按版</title>
+<title>每日拼图 （V2）</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -202,6 +202,22 @@
     color: #999;
     margin-top: 10px;
   }
+  /* 新增：自定义模块按钮样式 */
+  .custom-link {
+    display: inline-block;
+    padding: 8px 16px;
+    background: #e0e0e0;
+    border-radius: 20px;
+    color: #333;
+    font-weight: 500;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: background 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .custom-link:active {
+    background: #ccc;
+  }
 </style>
 </head>
 <body>
@@ -229,7 +245,8 @@
 
 <div class="footer">
   ✔️ 单击切换完成 · 长按/右键编辑内容 · 数据存本地 ·
-  <a onclick="toggleSettings()">⚙️ 自定义模块</a>
+  <!-- 将原来的链接改为按钮样式 -->
+  <span class="custom-link" onclick="toggleSettings()">⚙️ 自定义模块</span>
 </div>
 <div class="footer hint">
   📱 手机长按约0.5秒即可编辑（如果仍无效，可尝试用系统浏览器打开）
@@ -255,10 +272,10 @@
 <script>
 // ----- 默认配置 -----
 const DEFAULT_BASE = [
-  "20分钟运动",
-  "一次直接表达",
-  "45分钟主线推进",
-  "记录一次收支"
+  "健康复利：运动至少30分钟",
+  "关系复利：深度链接一个人",
+  "成长复利：自我觉察及输出",
+  "财富复利：主被动收入推进"
 ];
 const DEFAULT_THEME = [
   "输出300字",
