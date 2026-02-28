@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>每日拼图 （V2）</title>
+<title>每日拼图 · 本地版</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -62,6 +62,7 @@
     overflow: hidden;
     box-shadow: 0 2px 5px rgba(0,0,0,0.1);
     cursor: pointer;
+    touch-action: manipulation;
   }
   .block-content {
     position: absolute;
@@ -113,12 +114,24 @@
     margin-top: 30px;
     color: #888;
     font-size: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
   }
-  .footer a {
-    color: #888;
-    text-decoration: none;
-    border-bottom: 1px dashed #ccc;
+  .footer button, .footer .custom-link {
+    background: #e0e0e0;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 20px;
+    color: #333;
+    font-weight: 500;
     cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+  }
+  .footer button:active, .footer .custom-link:active {
+    background: #ccc;
   }
   .image-upload {
     margin: 15px 0;
@@ -145,14 +158,68 @@
     border-radius: 20px;
     cursor: pointer;
   }
-  .settings-panel {
-    display: none;
-    margin-top: 20px;
-    padding: 20px;
+  .summary-section {
+    margin: 20px 0;
+    text-align: left;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 15px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .summary-section textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    margin-top: 5px;
+    resize: vertical;
+  }
+  .summary-section button {
+    margin-top: 10px;
+    padding: 8px 16px;
+    background: #4caf50;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    cursor: pointer;
+  }
+  .settings-panel, .stats-panel {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+    padding: 20px;
+    z-index: 1000;
     text-align: left;
+  }
+  .stats-panel {
+    display: none;
+  }
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+  }
+  .panel-header h3 {
+    margin: 0;
+  }
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
   }
   .settings-panel textarea {
     width: 100%;
@@ -169,6 +236,31 @@
     display: block;
     margin-top: 10px;
   }
+  .stats-panel .stat-item {
+    margin-bottom: 15px;
+  }
+  .stats-panel table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .stats-panel td, .stats-panel th {
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+    text-align: left;
+  }
+  .stats-panel th {
+    font-weight: 600;
+  }
+  .overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.4);
+    z-index: 999;
+  }
   #pickerOverlay {
     display: none;
     position: fixed;
@@ -176,7 +268,7 @@
     border-radius: 12px;
     box-shadow: 0 2px 15px rgba(0,0,0,0.2);
     padding: 10px 0;
-    z-index: 1000;
+    z-index: 1001;
     max-width: 80%;
     max-height: 60%;
     overflow-y: auto;
@@ -202,22 +294,6 @@
     color: #999;
     margin-top: 10px;
   }
-  /* 新增：自定义模块按钮样式 */
-  .custom-link {
-    display: inline-block;
-    padding: 8px 16px;
-    background: #e0e0e0;
-    border-radius: 20px;
-    color: #333;
-    font-weight: 500;
-    cursor: pointer;
-    margin-top: 10px;
-    transition: background 0.2s;
-    -webkit-tap-highlight-color: transparent;
-  }
-  .custom-link:active {
-    background: #ccc;
-  }
 </style>
 </head>
 <body>
@@ -237,6 +313,14 @@
 
 <div id="puzzle"></div>
 
+<!-- 今日一句区域 -->
+<div class="summary-section">
+  <label for="todaySummary">📝 今日一句</label>
+  <textarea id="todaySummary" rows="2" placeholder="写下今天的心情或收获..."></textarea>
+  <button onclick="saveTodaySummary()">保存</button>
+  <span id="summarySaved" style="margin-left: 10px; color: green; display: none;">✓ 已保存</span>
+</div>
+
 <div class="image-upload">
   <label for="imageUpload">📷 上传背景图</label>
   <input type="file" id="imageUpload" accept="image/*" onchange="handleImageUpload(event)">
@@ -244,33 +328,45 @@
 </div>
 
 <div class="footer">
-  ✔️ 单击切换完成 · 长按/右键编辑内容 · 数据存本地 ·
-  <!-- 将原来的链接改为按钮样式 -->
   <span class="custom-link" onclick="toggleSettings()">⚙️ 自定义模块</span>
-</div>
-<div class="footer hint">
-  📱 手机长按约0.5秒即可编辑（如果仍无效，可尝试用系统浏览器打开）
+  <span class="custom-link" onclick="showStats()">📊 统计回顾</span>
 </div>
 
+<!-- 自定义模块面板 -->
 <div id="settingsPanel" class="settings-panel">
-  <h3>自定义模块库</h3>
+  <div class="panel-header">
+    <h3>自定义模块库</h3>
+    <button class="close-btn" onclick="toggleSettings()">&times;</button>
+  </div>
   <label>基础模块（每行一项）</label>
-  <textarea id="baseModulesInput" rows="4" placeholder="20分钟运动&#10;一次直接表达&#10;45分钟主线推进&#10;记录一次收支"></textarea>
+  <textarea id="baseModulesInput" rows="4" placeholder="健康复利：运动至少30分钟&#10;关系复利：深度链接一个人&#10;成长复利：自我觉察及输出&#10;财富复利：主被动收入推进"></textarea>
   <label>主题池（每行一项）</label>
   <textarea id="themePoolInput" rows="5" placeholder="输出300字&#10;AI学习20分钟&#10;联系一个人&#10;阅读30分钟&#10;10分钟静坐"></textarea>
   <div>
     <button onclick="saveCustomModules()">保存并重新生成</button>
-    <button onclick="toggleSettings()">关闭</button>
   </div>
-  <p style="font-size: 13px; color: #999; margin-top: 10px;">保存后会清空今天进度，按当前块数重新生成初始拼块。</p>
+  <p class="hint">保存后会清空今天进度，按当前块数重新生成初始拼块。</p>
 </div>
 
+<!-- 统计回顾面板 -->
+<div id="statsPanel" class="stats-panel">
+  <div class="panel-header">
+    <h3>📊 统计回顾</h3>
+    <button class="close-btn" onclick="hideStats()">&times;</button>
+  </div>
+  <div id="statsContent">加载中...</div>
+</div>
+
+<!-- 遮罩层 -->
+<div id="overlay" class="overlay" onclick="hideAllPanels()"></div>
+
+<!-- 长按编辑浮层 -->
 <div id="pickerOverlay" onclick="event.stopPropagation()">
   <ul id="pickerOptions"></ul>
 </div>
 
 <script>
-// ----- 默认配置 -----
+// ----- 默认配置（已更新为你指定的内容）-----
 const DEFAULT_BASE = [
   "健康复利：运动至少30分钟",
   "关系复利：深度链接一个人",
@@ -289,6 +385,67 @@ const DEFAULT_THEME = [
 // ----- 全局变量 -----
 let uploadedImageDataURL = null;
 let currentEditingIndex = -1;
+
+// ----- 数据迁移：将旧版数据转换为新版统一格式 -----
+function migrateDayData(dateStr) {
+  const oldPuzzleKey = "puzzle_" + dateStr;
+  const oldData = localStorage.getItem(oldPuzzleKey);
+  if (!oldData) return null; // 无旧数据
+
+  const pieces = JSON.parse(oldData);
+  const done = [];
+  for (let i = 0; i < pieces.length; i++) {
+    const doneKey = oldPuzzleKey + "_done_" + i;
+    done.push(localStorage.getItem(doneKey) === 'true');
+  }
+  const oldSummaryKey = oldPuzzleKey + "_summary";
+  const summary = localStorage.getItem(oldSummaryKey) || '';
+
+  const newData = { pieces, done, summary };
+  const newKey = "puzzleData_" + dateStr;
+  localStorage.setItem(newKey, JSON.stringify(newData));
+
+  // 清理旧键
+  localStorage.removeItem(oldPuzzleKey);
+  for (let i = 0; i < pieces.length; i++) {
+    localStorage.removeItem(oldPuzzleKey + "_done_" + i);
+  }
+  localStorage.removeItem(oldSummaryKey);
+
+  return newData;
+}
+
+// 获取某天的数据（返回对象，如果不存在则创建默认）
+function getDayData(dateStr) {
+  const newKey = "puzzleData_" + dateStr;
+  let dataStr = localStorage.getItem(newKey);
+  if (dataStr) {
+    return JSON.parse(dataStr);
+  }
+  // 尝试迁移旧数据
+  const migrated = migrateDayData(dateStr);
+  if (migrated) return migrated;
+
+  // 否则返回 null（当天无数据）
+  return null;
+}
+
+// 保存当天数据（pieces, done, summary）
+function saveDayData(dateStr, data) {
+  const newKey = "puzzleData_" + dateStr;
+  localStorage.setItem(newKey, JSON.stringify(data));
+  // 清理可能残留的旧键（安全）
+  localStorage.removeItem("puzzle_" + dateStr);
+  for (let i = 0; i < data.pieces.length; i++) {
+    localStorage.removeItem("puzzle_" + dateStr + "_done_" + i);
+  }
+  localStorage.removeItem("puzzle_" + dateStr + "_summary");
+}
+
+// 获取今天的日期字符串 YYYY-MM-DD
+function getTodayStr() {
+  return new Date().toISOString().split('T')[0];
+}
 
 // ----- 读取/保存自定义模块 -----
 function loadCustomModules() {
@@ -321,60 +478,41 @@ function loadSettingsToInputs() {
 
 function toggleSettings() {
   const panel = document.getElementById('settingsPanel');
+  const overlay = document.getElementById('overlay');
   if (panel.style.display === 'none' || panel.style.display === '') {
     panel.style.display = 'block';
+    overlay.style.display = 'block';
     loadSettingsToInputs();
   } else {
     panel.style.display = 'none';
+    overlay.style.display = 'none';
   }
 }
 
 function saveCustomModules() {
   if (!saveCustomModulesFromInputs()) return;
-  const todayKey = getTodayKey();
-  localStorage.removeItem(todayKey);
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i);
-    if (key && key.startsWith(todayKey + "_done_")) {
-      localStorage.removeItem(key);
-      i--;
-    }
-  }
-  document.getElementById('settingsPanel').style.display = 'none';
-  const savedMode = localStorage.getItem(todayKey + "_mode");
+  // 清空当天记录，重新生成
+  const todayStr = getTodayStr();
+  localStorage.removeItem("puzzleData_" + todayStr);
+  toggleSettings(); // 关闭面板
+  const savedMode = localStorage.getItem("puzzle_mode_" + todayStr);
   const mode = savedMode ? parseInt(savedMode) : 5;
   generatePuzzle(mode);
 }
 
-// ----- 日期工具 -----
-function getTodayKey() {
-  return "puzzle_" + new Date().toISOString().split('T')[0];
-}
-function formatDate(date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  return `${y}-${m}-${d}`;
-}
-
-// ----- 更新连续完成天数 -----
+// ----- 更新连续完成天数（基于本地数据）-----
 function updateStreak() {
   let streak = 0;
   let currentDate = new Date();
+
   while (true) {
-    const dateStr = formatDate(currentDate);
-    const puzzleKey = "puzzle_" + dateStr;
-    const puzzleData = localStorage.getItem(puzzleKey);
-    if (!puzzleData) break;
-    const pieces = JSON.parse(puzzleData);
-    let allDone = true;
-    for (let i = 0; i < pieces.length; i++) {
-      if (localStorage.getItem(puzzleKey + "_done_" + i) !== "true") {
-        allDone = false;
-        break;
-      }
-    }
+    const dateStr = currentDate.toISOString().split('T')[0];
+    const dayData = getDayData(dateStr);
+    if (!dayData) break; // 没有这一天
+
+    const allDone = dayData.done.every(v => v === true);
     if (!allDone) break;
+
     streak++;
     currentDate.setDate(currentDate.getDate() - 1);
   }
@@ -399,16 +537,16 @@ function showPickerForBlock(index, blockElement, clientX, clientY) {
     li.textContent = opt;
     li.onclick = (e) => {
       e.stopPropagation();
-      const todayKey = getTodayKey();
-      const puzzleData = localStorage.getItem(todayKey);
-      if (!puzzleData) return;
-      const pieces = JSON.parse(puzzleData);
-      if (index < pieces.length) {
-        pieces[index] = opt;
-        localStorage.setItem(todayKey, JSON.stringify(pieces));
-        localStorage.removeItem(todayKey + "_done_" + index);
-        renderPuzzle(pieces);
+      const todayStr = getTodayStr();
+      const dayData = getDayData(todayStr);
+      if (!dayData) return;
+      if (index < dayData.pieces.length) {
+        dayData.pieces[index] = opt;
+        dayData.done[index] = false; // 重置完成状态
+        saveDayData(todayStr, dayData);
+        renderPuzzle(dayData.pieces, dayData.done);
         updateStreak();
+        document.getElementById('todaySummary').value = dayData.summary || '';
       }
       hidePicker();
     };
@@ -425,7 +563,6 @@ function showPickerForBlock(index, blockElement, clientX, clientY) {
     left = rect.left + window.scrollX;
     top = rect.bottom + window.scrollY + 5;
   }
-  // 避免超出屏幕
   overlay.style.left = Math.min(left, window.innerWidth - 200) + 'px';
   overlay.style.top = top + 'px';
   overlay.style.display = 'block';
@@ -435,8 +572,8 @@ function hidePicker() {
   document.getElementById('pickerOverlay').style.display = 'none';
 }
 
-// ----- 渲染拼图块 -----
-function renderPuzzle(pieces) {
+// ----- 渲染拼图块（传入pieces和done数组）-----
+function renderPuzzle(pieces, done) {
   const container = document.getElementById('puzzle');
   container.innerHTML = '';
 
@@ -481,39 +618,18 @@ function renderPuzzle(pieces) {
     block.appendChild(textSpan);
     block.appendChild(overlay);
 
-    const doneKey = getTodayKey() + "_done_" + index;
-    if (localStorage.getItem(doneKey) === 'true') {
+    if (done[index]) {
       block.classList.add('done');
     }
 
-    // ---------- 单击切换完成 ----------
-    block.onclick = (e) => {
-      e.stopPropagation();
-      block.classList.toggle('done');
-      if (block.classList.contains('done')) {
-        localStorage.setItem(doneKey, 'true');
-      } else {
-        localStorage.removeItem(doneKey);
-      }
-      updateStreak();
-    };
-
-    // ---------- 电脑右键编辑 ----------
-    block.oncontextmenu = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      showPickerForBlock(index, block, e.clientX, e.clientY);
-      return false;
-    };
-
-    // ---------- 手机长按编辑（优化版） ----------
+    // 触摸事件：单击切换完成，长按编辑
     let touchTimer;
     let touchMoved = false;
     const longPressDelay = 500;
     const moveThreshold = 10;
 
     block.addEventListener('touchstart', (e) => {
-      e.preventDefault(); // 关键：阻止浏览器默认滚动和菜单
+      e.preventDefault(); // 阻止默认滚动和菜单
       touchMoved = false;
       const touch = e.touches[0];
       const startX = touch.clientX;
@@ -521,7 +637,7 @@ function renderPuzzle(pieces) {
 
       touchTimer = setTimeout(() => {
         if (!touchMoved) {
-          // 触发编辑菜单
+          // 长按触发编辑
           showPickerForBlock(index, block, e.touches[0].clientX, e.touches[0].clientY);
         }
       }, longPressDelay);
@@ -538,8 +654,19 @@ function renderPuzzle(pieces) {
         }
       };
 
-      const touchEndHandler = () => {
+      const touchEndHandler = (e) => {
         clearTimeout(touchTimer);
+        if (!touchMoved) {
+          // 单击切换完成
+          const todayStr = getTodayStr();
+          const dayData = getDayData(todayStr);
+          if (dayData) {
+            dayData.done[index] = !dayData.done[index];
+            saveDayData(todayStr, dayData);
+            renderPuzzle(dayData.pieces, dayData.done);
+            updateStreak();
+          }
+        }
         block.removeEventListener('touchmove', touchMoveHandler);
         block.removeEventListener('touchend', touchEndHandler);
         block.removeEventListener('touchcancel', touchEndHandler);
@@ -550,59 +677,71 @@ function renderPuzzle(pieces) {
       block.addEventListener('touchcancel', touchEndHandler);
     }, { passive: false });
 
+    // 右键编辑（电脑）
+    block.oncontextmenu = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      showPickerForBlock(index, block, e.clientX, e.clientY);
+      return false;
+    };
+
     container.appendChild(block);
   });
 
   document.getElementById('date').innerText = '日期：' + new Date().toLocaleDateString();
 }
 
-// ----- 生成今日拼图 -----
+// ----- 生成今日拼图（mode 可选）-----
 function generatePuzzle(mode) {
-  const todayKey = getTodayKey();
+  const todayStr = getTodayStr();
   const { base, theme } = loadCustomModules();
 
   if (mode !== undefined) {
-    localStorage.removeItem(todayKey);
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && key.startsWith(todayKey + "_done_")) {
-        localStorage.removeItem(key);
-        i--;
-      }
-    }
-
-    let todayPuzzle;
+    // 删除当天数据
+    localStorage.removeItem("puzzleData_" + todayStr);
+    // 构造新拼图
+    let pieces;
     if (mode === 3) {
-      todayPuzzle = base.slice(0, 3);
+      pieces = base.slice(0, 3);
     } else if (mode === 4) {
-      todayPuzzle = base.slice(0, 4);
+      pieces = base.slice(0, 4);
     } else if (mode === 5) {
-      todayPuzzle = [...base.slice(0, 4), theme[0] || '（无主题）'];
+      pieces = [...base.slice(0, 4), theme[0] || '（无主题）'];
     } else if (mode === 6) {
       const extra = theme.slice(0, 2);
       while (extra.length < 2) extra.push('额外任务');
-      todayPuzzle = [...base.slice(0, 4), ...extra];
+      pieces = [...base.slice(0, 4), ...extra];
+    } else {
+      // 默认用5
+      pieces = [...base.slice(0, 4), theme[0] || '（无主题）'];
+      mode = 5;
     }
+    const done = new Array(pieces.length).fill(false);
+    const summary = '';
+    saveDayData(todayStr, { pieces, done, summary });
+    localStorage.setItem("puzzle_mode_" + todayStr, mode); // 保存模式
 
-    localStorage.setItem(todayKey, JSON.stringify(todayPuzzle));
-    localStorage.setItem(todayKey + "_mode", mode);
-    renderPuzzle(todayPuzzle);
+    renderPuzzle(pieces, done);
     updateModeUI(mode);
     updateStreak();
+    document.getElementById('todaySummary').value = '';
     return;
   }
 
-  if (localStorage.getItem(todayKey)) {
-    const pieces = JSON.parse(localStorage.getItem(todayKey));
-    const savedMode = localStorage.getItem(todayKey + "_mode");
-    const modeNum = savedMode ? parseInt(savedMode) : (pieces.length === 4 ? 4 : 5);
-    renderPuzzle(pieces);
+  // 无参数：检查当天数据
+  let dayData = getDayData(todayStr);
+  if (dayData) {
+    const savedMode = localStorage.getItem("puzzle_mode_" + todayStr);
+    const modeNum = savedMode ? parseInt(savedMode) : (dayData.pieces.length);
+    renderPuzzle(dayData.pieces, dayData.done);
     updateModeUI(modeNum);
     updateStreak();
+    document.getElementById('todaySummary').value = dayData.summary || '';
     return;
   }
 
-  const savedMode = localStorage.getItem(todayKey + "_mode");
+  // 无当天数据：用默认模式生成（优先用上次保存的模式，否则5）
+  const savedMode = localStorage.getItem("puzzle_mode_" + todayStr);
   const defaultMode = savedMode ? parseInt(savedMode) : 5;
   generatePuzzle(defaultMode);
 }
@@ -615,8 +754,118 @@ function updateModeUI(mode) {
 }
 
 function setMode(mode) {
-  localStorage.setItem(getTodayKey() + "_mode", mode);
+  localStorage.setItem("puzzle_mode_" + getTodayStr(), mode);
   generatePuzzle(mode);
+}
+
+// ----- 今日一句保存 -----
+function saveTodaySummary() {
+  const summary = document.getElementById('todaySummary').value.trim();
+  const todayStr = getTodayStr();
+  let dayData = getDayData(todayStr);
+  if (!dayData) {
+    // 如果当天还没有数据，先按当前模式生成
+    const mode = localStorage.getItem("puzzle_mode_" + todayStr) || 5;
+    generatePuzzle(parseInt(mode));
+    dayData = getDayData(todayStr);
+  }
+  dayData.summary = summary;
+  saveDayData(todayStr, dayData);
+  const savedSpan = document.getElementById('summarySaved');
+  savedSpan.style.display = 'inline';
+  setTimeout(() => { savedSpan.style.display = 'none'; }, 2000);
+}
+
+// ----- 统计回顾 -----
+function showStats() {
+  const panel = document.getElementById('statsPanel');
+  const overlay = document.getElementById('overlay');
+  panel.style.display = 'block';
+  overlay.style.display = 'block';
+  refreshStats();
+}
+
+function hideStats() {
+  document.getElementById('statsPanel').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+}
+
+function hideAllPanels() {
+  document.getElementById('settingsPanel').style.display = 'none';
+  document.getElementById('statsPanel').style.display = 'none';
+  document.getElementById('overlay').style.display = 'none';
+  hidePicker();
+}
+
+function refreshStats() {
+  const contentDiv = document.getElementById('statsContent');
+  // 收集所有日期数据
+  const dayDataMap = new Map(); // dateStr -> { pieces, done, summary }
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('puzzleData_')) {
+      const dateStr = key.substring(11); // 去掉'puzzleData_'
+      try {
+        const data = JSON.parse(localStorage.getItem(key));
+        dayDataMap.set(dateStr, data);
+      } catch (e) {}
+    }
+  }
+
+  // 按日期排序（最近在前）
+  const sortedDates = Array.from(dayDataMap.keys()).sort().reverse();
+
+  // 统计任务完成次数
+  const taskStats = {}; // 任务名 -> { total: 出现次数, completed: 完成次数 }
+
+  sortedDates.forEach(dateStr => {
+    const data = dayDataMap.get(dateStr);
+    data.pieces.forEach((task, idx) => {
+      if (!taskStats[task]) {
+        taskStats[task] = { total: 0, completed: 0 };
+      }
+      taskStats[task].total++;
+      if (data.done[idx]) {
+        taskStats[task].completed++;
+      }
+    });
+  });
+
+  // 构建HTML
+  let html = '<div class="stat-item"><h4>📅 最近7天</h4>';
+  const recentDates = sortedDates.slice(0, 7);
+  if (recentDates.length === 0) {
+    html += '<p>暂无数据</p>';
+  } else {
+    html += '<table><tr><th>日期</th><th>完成情况</th><th>今日一句</th></tr>';
+    recentDates.forEach(dateStr => {
+      const data = dayDataMap.get(dateStr);
+      const doneCount = data.done.filter(v => v).length;
+      const total = data.pieces.length;
+      const summary = data.summary || '—';
+      html += `<tr><td>${dateStr}</td><td>${doneCount}/${total}</td><td>${summary.substring(0, 20)}${summary.length>20?'…':''}</td></tr>`;
+    });
+    html += '</table>';
+  }
+  html += '</div>';
+
+  html += '<div class="stat-item"><h4>📊 任务完成统计</h4>';
+  if (Object.keys(taskStats).length === 0) {
+    html += '<p>暂无任务</p>';
+  } else {
+    html += '<table><tr><th>任务</th><th>出现次数</th><th>完成次数</th><th>完成率</th></tr>';
+    Object.entries(taskStats).sort((a,b) => b[1].total - a[1].total).forEach(([task, stat]) => {
+      const rate = stat.total > 0 ? Math.round(stat.completed / stat.total * 100) : 0;
+      html += `<tr><td>${task}</td><td>${stat.total}</td><td>${stat.completed}</td><td>${rate}%</td></tr>`;
+    });
+    html += '</table>';
+  }
+  html += '</div>';
+
+  // 连续完成天数（已有）
+  html += `<div class="stat-item"><h4>🔥 当前连续完成：${document.getElementById('streak').innerText} 天</h4></div>`;
+
+  contentDiv.innerHTML = html;
 }
 
 // ----- 图片上传 -----
@@ -626,10 +875,10 @@ function handleImageUpload(event) {
   const reader = new FileReader();
   reader.onload = (e) => {
     uploadedImageDataURL = e.target.result;
-    const todayKey = getTodayKey();
-    const puzzleData = localStorage.getItem(todayKey);
-    if (puzzleData) {
-      renderPuzzle(JSON.parse(puzzleData));
+    const todayStr = getTodayStr();
+    const dayData = getDayData(todayStr);
+    if (dayData) {
+      renderPuzzle(dayData.pieces, dayData.done);
     } else {
       generatePuzzle();
     }
@@ -640,10 +889,10 @@ function handleImageUpload(event) {
 
 function clearImage() {
   uploadedImageDataURL = null;
-  const todayKey = getTodayKey();
-  const puzzleData = localStorage.getItem(todayKey);
-  if (puzzleData) {
-    renderPuzzle(JSON.parse(puzzleData));
+  const todayStr = getTodayStr();
+  const dayData = getDayData(todayStr);
+  if (dayData) {
+    renderPuzzle(dayData.pieces, dayData.done);
   } else {
     generatePuzzle();
   }
